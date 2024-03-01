@@ -1,5 +1,4 @@
 
-import re
 
 def parse_location_tuple(loc_str):
     # "(<x>,<y>)"
