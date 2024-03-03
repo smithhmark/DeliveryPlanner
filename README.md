@@ -1,5 +1,11 @@
-# Introduction
-DeliveryPlanner takes a CSV file of coordinates pairs that represents the origin and destination of shipments and uses it to compute an estimate of the minimal delivery cost to move all the shipments in a period.
+# DeliveryPlanner
+DeliveryPlanner takes a text file of coordinates pairs that represents the origin and destination of shipments and uses it to compute an estimate of the minimal delivery cost to move all the shipments in a period.
+
+## Running
+`python3 planner.py <input file>`
+
+optionally:
+`python3 planner.py -v <input file>` will add the distance of each drivers route and the total cost to the output
 
 ## Goal
 
@@ -9,6 +15,7 @@ The initial goal of this project is to demonstrate clean, professional coding. T
 To address the VRP I am using the heuristic that the overall cost is minimized by minimizing the number of drivers. Therefore I am using a greedy algorithm to iteratively find the best route for a driver of the remaining loads to be shipped. In this case, "best" means that they are handling the most shipments first, and secondarily traversing the lowest distance.
 
 Greedily finding the "best" route for a driver, then repeating for the next driver seems like it might miss a globally optimal solution. Also, the greedy method is not able to result much work from prior runs, so runtime is probably not great eatier.
+
 
 ## Approaches discarded (for now?)
 - building a constraint solver. This would be super fun, but would be a lot of work and be very difficult.

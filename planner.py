@@ -1,8 +1,8 @@
 import math
 import sys
 
-
 import shipment_file
+import cli
 
 DRIVER_COST = 500
 DEPO = "DEPO"
@@ -11,10 +11,16 @@ DEPO = "DEPO"
 def final_cost(drivers, total_distance):
     return DRIVER_COST * drivers + total_distance
 
+
 def distance(start, finish):
     x1, y1 = start
     x2, y2 = finish
     return math.sqrt((x2-x1)**2 + (y2-y1)**2)
+
+
+def total_cost(num_drivers, total_distance_traveled):
+    return DRIVER_COST*num_drivers + total_distance_traveled
+
 
 def precalcs(shipments):
     raw_origins = [(DEPO, "0.0","0.0")]
@@ -49,7 +55,9 @@ def precalcs(shipments):
 
     return origins, destinations, distances, final_run_cost
 
-def find_driver_route(distances, final_run_cost, allowed_shipments, max_duration=12*60):
+
+def find_driver_route(distances, final_run_cost,
+                      allowed_shipments, max_duration=12*60):
     base_case = {}
     longest_duration = 0
     longest_route_starts_at = None
@@ -114,26 +122,40 @@ def find_driver_route(distances, final_run_cost, allowed_shipments, max_duration
     return shipments, total_driving
 
 
-def cost_of_deliveries(shipments):
+def cost_of_deliveries(shipments, verbose=False):
     origins, destinations, distances, final_run_cost = precalcs(shipments)
     allowed_shipments = set(shipments.keys())
 
     driver_routes = []
     total_length = 0
+    rt_lengths = [] 
     while len(allowed_shipments) > 0:
         route, length = find_driver_route(distances, final_run_cost, allowed_shipments)
         driver_routes.append(route)
         allowed_shipments.difference_update(route)
         total_length += length
+        rt_lengths.append(length)
+
+    if verbose:
+        total = total_cost(len(driver_routes), total_length)
+        print(f"Total cost:{total}")
+        print("Driver-Route Breakdown:")
+        print("\tdriver\tlength of route")
+        for ii, length in enumerate(rt_lengths):
+            print(f"\t{ii}\t{length}")
+
     return driver_routes
 
-def main():
-    path = sys.argv[1]
-    shipments = shipment_file.load_file(path)
 
-    routes = cost_of_deliveries(shipments)
+def main():
+    args = cli.parse_args()
+
+    shipments = shipment_file.load_file(args.shipment_file)
+
+    routes = cost_of_deliveries(shipments, args.is_verbose)
     for route in routes:
         print(f"[{','.join(route)}]")
+
 
 if __name__ == '__main__':
     main()
