@@ -17,6 +17,10 @@ Greedily finding the "best" route for a driver, then repeating for the next driv
 - use someone else's solution. fast, probably easy. Discarded for being unethicaland no fun.
 - use an open source library. In a professional setting this is what I would do. Spending a few days to learn how to use the library and delivering a decent solution nearly immediately is clearly the right approach. If the results aren't what are needed, having a working solution in hand should allow us to pursue other options.
 
+# Next Steps
+- Dockerize
+- implement the relaxation strategy
+
 # Resources consulted
 - [This article](https://towardsdatascience.com/the-vehicle-routing-problem-exact-and-heuristic-solutions-c411c0f4d734) provides a fairly complete solution in Python and therefore feels like cheating
 - [VRPy](https://vrpy.readthedocs.io/en/latest/) is a python library for solving VRP problems. Again, this seems like cheating

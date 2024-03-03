@@ -50,7 +50,6 @@ def precalcs(shipments):
     return origins, destinations, distances, final_run_cost
 
 def find_driver_route(distances, final_run_cost, allowed_shipments, max_duration=12*60):
-
     base_case = {}
     longest_duration = 0
     longest_route_starts_at = None
@@ -60,7 +59,7 @@ def find_driver_route(distances, final_run_cost, allowed_shipments, max_duration
     longest_route_starting_at_fullcost = {}
     length_at = {}
     for shipment in allowed_shipments:
-        route = [DEPO, shipment, DEPO]
+        route = [shipment]
         contains = set(route)
         cost = 0
         cost += distances[DEPO][shipment]
