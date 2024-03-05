@@ -1,3 +1,5 @@
+import pytest
+
 import shipment_file as testee
 
 @pytest.fixture

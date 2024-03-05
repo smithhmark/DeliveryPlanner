@@ -22,6 +22,16 @@ def total_cost(num_drivers, total_distance_traveled):
     return DRIVER_COST*num_drivers + total_distance_traveled
 
 
+def precalc_distances(origins, destinations):
+    distances = {}
+    for dest, dpoint in destinations.items(): 
+        distances[dest] = {}
+        for origin, opoint in origins.items():
+            dist = distance(dpoint, opoint)
+            distances[dest][origin] = dist
+    return distances
+
+
 def precalcs(shipments):
     raw_origins = [(DEPO, "0.0","0.0")]
     raw_destinations = [(DEPO, "0.0","0.0")]
@@ -42,12 +52,7 @@ def precalcs(shipments):
         y = float(y_str)
         destinations[name] = (x,y)
 
-    distances = {}
-    for dest, dpoint in destinations.items(): 
-        distances[dest] = {}
-        for origin, opoint in origins.items():
-            dist = distance(dpoint, opoint)
-            distances[dest][origin] = dist
+    distances = precalc_distances(origins, destinations)
 
     final_run_cost = {}
     for shipment in shipments:
@@ -88,8 +93,8 @@ def find_driver_route(distances, final_run_cost,
             dist_to_now = longest_route_all_but_return[shipment]
             route_round_trip_dist = longest_route_round_trip[shipment]
 
-            """
             assert route_round_trip_dist < max_duration, f"wehave gone too far: {shipment}, {longest_route[shipment]}, {route_round_trip_dist} >= {max_duration}"
+            """
             """
 
             candidates = allowed_shipments - longest_route_starting_at_contains[shipment]
@@ -118,7 +123,7 @@ def find_driver_route(distances, final_run_cost,
             if best_candidate is not None:
                 longest_route_round_trip[shipment] = best_candidate_round_trip
                 longest_route[shipment].append(best_candidate)
-                longest_route_all_but_return[shipment] = candidate_internal
+                longest_route_all_but_return[shipment] = best_internal
                 longest_route_starting_at_contains[shipment].add(best_candidate)
                 shipments_per_route[shipment] += 1
     
