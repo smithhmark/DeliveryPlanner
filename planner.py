@@ -90,7 +90,7 @@ def find_driver_route(distances, final_run_cost,
         added_a_shipment = False
         for shipment in allowed_shipments:
             # what shipment could we add to this route?
-            dist_to_now = longest_route_all_but_return[shipment]
+            traveled_so_far = longest_route_all_but_return[shipment]
             route_round_trip_dist = longest_route_round_trip[shipment]
 
             assert route_round_trip_dist < max_duration, f"wehave gone too far: {shipment}, {longest_route[shipment]}, {route_round_trip_dist} >= {max_duration}"
@@ -105,12 +105,11 @@ def find_driver_route(distances, final_run_cost,
                 internal_cost = distances[shipment][candidate] + distances[candidate][candidate]
                 final_shipmt_dist = internal_cost + distances[candidate][DEPO]
 
-                candidate_route_cost =  dist_to_now + final_shipmt_dist
-                candidate_internal =  internal_cost + dist_to_now
-                if candidate_route_cost >= max_duration:
-                    continue
+                candidate_route_cost =  traveled_so_far + final_shipmt_dist
+                candidate_internal =  internal_cost + traveled_so_far
                 if candidate_route_cost < max_duration:
-                    if candidate_route_cost < best_candidate_round_trip and candidate_internal < best_internal:
+                    if candidate_route_cost < best_candidate_round_trip:
+                        #and candidate_internal < best_internal:
                         best_candidate_round_trip = candidate_route_cost
                         best_candidate = candidate
                         best_internal = internal_cost
@@ -122,6 +121,7 @@ def find_driver_route(distances, final_run_cost,
             """
             if best_candidate is not None:
                 longest_route_round_trip[shipment] = best_candidate_round_trip
+                assert best_candidate_round_trip < max_duration, f"toofar: {shipment}, {longest_route[shipment]}, {best_candidate_round_trip}"
                 longest_route[shipment].append(best_candidate)
                 longest_route_all_but_return[shipment] = best_internal
                 longest_route_starting_at_contains[shipment].add(best_candidate)
@@ -131,10 +131,28 @@ def find_driver_route(distances, final_run_cost,
     for shipment in allowed_shipments:
         round_trip_dist = longest_route_round_trip[shipment]
         route = longest_route[shipment]
-        almost_final.append((len(route), round_trip_dist, route))
+        almost_final.append((len(route), round_trip_dist * -1, route))
     almost_final.sort(reverse=True)
+    print(almost_final)
     shipments_consumed, total_driving, shipments = almost_final[0]
-    return shipments, total_driving
+    return shipments, total_driving * -1
+
+
+def route_distance(route, distances):
+    current_location = DEPO
+    true_length = 0
+    missing_return = 0
+    missing_transits = 0
+    missing_shipments = 0
+    for shipment in route:
+        true_length += distances[current_location][shipment]
+        missing_shipments += distances[current_location][shipment]
+        true_length += distances[shipment][shipment]
+        missing_transits += distances[shipment][shipment]
+        current_location = shipment
+    missing_return = true_length
+    true_length += distances[current_location][DEPO]
+    return true_length, missing_transits, missing_shipments
 
 
 def cost_of_deliveries(shipments, verbose=False):
@@ -146,6 +164,14 @@ def cost_of_deliveries(shipments, verbose=False):
     rt_lengths = [] 
     while len(allowed_shipments) > 0:
         route, length = find_driver_route(distances, final_run_cost, allowed_shipments)
+        distance, err1, err2 = route_distance(route, distances)
+        if distance > 12*60:
+            print("route failed")
+            print(f"distance:{distance}")
+            print(f"claimed:{length}")
+            print(f"missing transits:{err1}")
+            print(f"missing shipments:{err2}")
+            sys.exit()
         driver_routes.append(route)
         allowed_shipments.difference_update(route)
         total_length += length
