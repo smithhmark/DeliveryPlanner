@@ -34,6 +34,14 @@ def precalc_distances(origins, destinations):
     return distances
 
 
+def build_locations_from_raw(raw_list):
+    locations = {}
+    for name, x_str, y_str in raw_list:
+        x = float(x_str)
+        y = float(y_str)
+        locations[name] = (x,y)
+    return locations
+
 def precalcs(shipments):
     raw_origins = [(DEPO, "0.0","0.0")]
     raw_destinations = [(DEPO, "0.0","0.0")]
@@ -42,17 +50,8 @@ def precalcs(shipments):
         raw_origins.append((shpname, origin[0], origin[1]))
         raw_destinations.append((shpname, dest[0], dest[1]))
 
-    origins = {}
-    for name, x_str, y_str in raw_origins:
-        x = float(x_str)
-        y = float(y_str)
-        origins[name] = (x,y)
-
-    destinations = {}
-    for name, x_str, y_str in raw_destinations:
-        x = float(x_str)
-        y = float(y_str)
-        destinations[name] = (x,y)
+    origins = build_locations_from_raw(raw_origins)
+    destinations = build_locations_from_raw(raw_destinations)
 
     distances = precalc_distances(origins, destinations)
 
