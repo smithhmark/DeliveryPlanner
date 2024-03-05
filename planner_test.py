@@ -51,16 +51,19 @@ def test_precalc_distances(origins, destinations):
     DEPO="DEPO"
     #print(distances)
     for load_id in range(1,11):
+        # test that we are storing shipment distances
         load_id = str(load_id)
         d1 = testee.distance(origins[load_id], destinations[load_id])
         d2 = distances[load_id][load_id]
         assert d1 == d2,f"{load_id} distance wrong"
 
+        # test that we are storing DEPO->shipment-origin distances
         d1 = testee.distance((0.0,0.0), origins[load_id])
         print(d1)
         d2 = distances[DEPO][load_id]
         assert d1 == d2, f"{load_id} Origin distance distance from DEPO wrong"
 
+        # test that we are storing shipment-dest->DEPO distances
         d1 = testee.distance(destinations[load_id], (0.0,0.0))
         d2 = distances[load_id][DEPO]
         assert d1 == d2,f"{load_id} dest distance to DEPO wrong"
