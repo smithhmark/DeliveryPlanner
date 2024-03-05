@@ -23,6 +23,8 @@ def total_cost(num_drivers, total_distance_traveled):
 
 
 def precalc_distances(origins, destinations):
+    #print(origins)
+    #print(destinations)
     distances = {}
     for dest, dpoint in destinations.items(): 
         distances[dest] = {}
@@ -47,7 +49,7 @@ def precalcs(shipments):
         origins[name] = (x,y)
 
     destinations = {}
-    for name, x_str, y_str in raw_origins:
+    for name, x_str, y_str in raw_destinations:
         x = float(x_str)
         y = float(y_str)
         destinations[name] = (x,y)
@@ -77,6 +79,7 @@ def find_driver_route(distances, final_run_cost,
         required_dist = 0
         required_dist += distances[DEPO][shipment] # dist to origin
         required_dist += distances[shipment][shipment] # dist to dest
+        #print(f"{distances[DEPO][shipment]} + {distances[shipment][shipment]}")
         round_trip_distance = required_dist + distances[shipment][DEPO]
 
         shipments_per_route[shipment] = 1
@@ -101,27 +104,30 @@ def find_driver_route(distances, final_run_cost,
             best_candidate = None
             best_internal = float("inf")
             best_candidate_round_trip = float("inf")
+            current_location = longest_route[shipment][-1]
             for candidate in candidates:
-                internal_cost = distances[shipment][candidate] + distances[candidate][candidate]
-                final_shipmt_dist = internal_cost + distances[candidate][DEPO]
+                transit_distance = distances[current_location][candidate]
+                candidate_shipment_dist = distances[candidate][candidate]
+                from_candidate_to_depo = distances[candidate][DEPO]
 
-                candidate_route_cost =  traveled_so_far + final_shipmt_dist
-                candidate_internal =  internal_cost + traveled_so_far
+                required_distance = transit_distance + candidate_shipment_dist
+
+                candidate_route_cost =  traveled_so_far + required_distance + from_candidate_to_depo
+
+                candidate_internal =  traveled_so_far + required_distance
+
                 if candidate_route_cost < max_duration:
                     if candidate_route_cost < best_candidate_round_trip:
                         #and candidate_internal < best_internal:
-                        best_candidate_round_trip = candidate_route_cost
                         best_candidate = candidate
-                        best_internal = internal_cost
+                        best_candidate_round_trip = candidate_route_cost
+                        best_internal = candidate_internal
                         added_a_shipment = True
 
-            """
-            if best_candidate_round_trip != float("inf"):
-                assert best_candidate_round_trip < max_duration, f"toofar: {shipment}, {longest_route[shipment]}, {best_candidate_round_trip}"
-            """
             if best_candidate is not None:
-                longest_route_round_trip[shipment] = best_candidate_round_trip
                 assert best_candidate_round_trip < max_duration, f"toofar: {shipment}, {longest_route[shipment]}, {best_candidate_round_trip}"
+
+                longest_route_round_trip[shipment] = best_candidate_round_trip
                 longest_route[shipment].append(best_candidate)
                 longest_route_all_but_return[shipment] = best_internal
                 longest_route_starting_at_contains[shipment].add(best_candidate)
@@ -133,26 +139,63 @@ def find_driver_route(distances, final_run_cost,
         route = longest_route[shipment]
         almost_final.append((len(route), round_trip_dist * -1, route))
     almost_final.sort(reverse=True)
-    print(almost_final)
+    #print(almost_final)
     shipments_consumed, total_driving, shipments = almost_final[0]
     return shipments, total_driving * -1
+
+
+
+def diagnose_systematic_errors(route, distances, provided_length=None, force_stop=True):
+    current_location = DEPO
+    missing_first_leg = 0 - distances[current_location][route[0]]
+    missing_return = 0
+    missing_transits = 0
+    missing_shipments = 0
+    for shipment in route:
+        missing_return += distances[current_location][shipment]
+        missing_first_leg += distances[current_location][shipment]
+        missing_shipments += distances[current_location][shipment]
+        missing_return += distances[shipment][shipment]
+        missing_first_leg += distances[shipment][shipment]
+        missing_transits += distances[shipment][shipment]
+        current_location = shipment
+
+    missing_shipments += distances[current_location][DEPO]
+    missing_transits += distances[current_location][DEPO]
+    missing_first_leg += distances[current_location][DEPO]
+
+    if provided_length is not None:
+        if provided_length == missing_first_leg:
+            print("the provided length corresponds to failing to account for the initial movement to the first shipment")
+        elif provided_length == missing_return:
+            print("the provided length corresponds to failing to account for the final movement to the depo")
+        elif provided_length == missing_transits:
+            print("the provided length corresponds to failing to accumlate the distances between shipments")
+        elif provided_length == missing_shipments:
+            print("the provided length corresponds to failing to accumlate the distances of the shipments")
+        else:
+            print(f"missing first leg:{missing_first_leg}")
+            print(f"missing final leg:{missing_return}")
+            print(f"missing transits:{missing_transits}")
+            print(f"missing shipments:{missing_shipments}")
+    else:
+            print(f"missing first leg:{missing_first_leg}")
+            print(f"missing final leg:{missing_return}")
+            print(f"missing transits:{missing_transits}")
+            print(f"missing shipments:{missing_shipments}")
+    if force_stop:
+        sys.exit()
 
 
 def route_distance(route, distances):
     current_location = DEPO
     true_length = 0
-    missing_return = 0
-    missing_transits = 0
-    missing_shipments = 0
     for shipment in route:
         true_length += distances[current_location][shipment]
-        missing_shipments += distances[current_location][shipment]
         true_length += distances[shipment][shipment]
-        missing_transits += distances[shipment][shipment]
         current_location = shipment
-    missing_return = true_length
     true_length += distances[current_location][DEPO]
-    return true_length, missing_transits, missing_shipments
+    return true_length
 
 
 def cost_of_deliveries(shipments, verbose=False):
@@ -163,19 +206,17 @@ def cost_of_deliveries(shipments, verbose=False):
     total_length = 0
     rt_lengths = [] 
     while len(allowed_shipments) > 0:
-        route, length = find_driver_route(distances, final_run_cost, allowed_shipments)
-        distance, err1, err2 = route_distance(route, distances)
+        route, driven_dist = find_driver_route(distances, final_run_cost, allowed_shipments)
+        distance = route_distance(route, distances)
         if distance > 12*60:
             print("route failed")
-            print(f"distance:{distance}")
-            print(f"claimed:{length}")
-            print(f"missing transits:{err1}")
-            print(f"missing shipments:{err2}")
-            sys.exit()
+            print(f"\tdistance:{distance}")
+            print(f"\tclaimed:{driven_dist}")
+            diagnose_systematic_errors(route, distances, driven_dist)
         driver_routes.append(route)
         allowed_shipments.difference_update(route)
-        total_length += length
-        rt_lengths.append(length)
+        total_length += driven_dist
+        rt_lengths.append(driven_dist)
 
     if verbose:
         total = total_cost(len(driver_routes), total_length)
