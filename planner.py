@@ -59,64 +59,74 @@ def precalcs(shipments):
 def find_driver_route(distances, final_run_cost,
                       allowed_shipments, max_duration=12*60):
     base_case = {}
-    longest_duration = 0
-    longest_route_starts_at = None
-    longest_route_starting_at = {}
+    longest_route = {}
     longest_route_starting_at_contains = {}
-    longest_route_starting_at_cost = {}
-    longest_route_starting_at_fullcost = {}
-    length_at = {}
+    longest_route_all_but_return = {}
+    longest_route_round_trip = {}
+    shipments_per_route = {}
+
+    # setup singleton shipments for each possible starting point
     for shipment in allowed_shipments:
         route = [shipment]
         contains = set(route)
-        cost = 0
-        cost += distances[DEPO][shipment]
-        cost += distances[shipment][shipment]
-        fullcost = cost + distances[shipment][DEPO]
+        required_dist = 0
+        required_dist += distances[DEPO][shipment] # dist to origin
+        required_dist += distances[shipment][shipment] # dist to dest
+        round_trip_distance = required_dist + distances[shipment][DEPO]
 
-        if cost > longest_duration:
-            longest_duration = fullcost
-            longest_route_starts_at = shipment
-        length_at[shipment] = 1
-        longest_route_starting_at[shipment] = route
+        shipments_per_route[shipment] = 1
+        longest_route[shipment] = route
         longest_route_starting_at_contains[shipment] = contains
-        longest_route_starting_at_cost[shipment] = cost
-        longest_route_starting_at_fullcost[shipment] = fullcost
+        longest_route_all_but_return[shipment] = required_dist
+        longest_route_round_trip[shipment] = round_trip_distance
 
     added_a_shipment = True
     while added_a_shipment:
         added_a_shipment = False
         for shipment in allowed_shipments:
             # what shipment could we add to this route?
-            cost_thru_shpmt = longest_route_starting_at_cost[shipment]
-            total_shpmt_cost = longest_route_starting_at_fullcost[shipment]
+            dist_to_now = longest_route_all_but_return[shipment]
+            route_round_trip_dist = longest_route_round_trip[shipment]
+
+            """
+            assert route_round_trip_dist < max_duration, f"wehave gone too far: {shipment}, {longest_route[shipment]}, {route_round_trip_dist} >= {max_duration}"
+            """
+
             candidates = allowed_shipments - longest_route_starting_at_contains[shipment]
             best_candidate = None
-            best_internal = 0
-            best_full = float("inf")
+            best_internal = float("inf")
+            best_candidate_round_trip = float("inf")
             for candidate in candidates:
                 internal_cost = distances[shipment][candidate] + distances[candidate][candidate]
-                cfullcost = internal_cost + distances[candidate][DEPO]
+                final_shipmt_dist = internal_cost + distances[candidate][DEPO]
 
-                candidate_route_cost =  cfullcost + cost_thru_shpmt 
+                candidate_route_cost =  dist_to_now + final_shipmt_dist
+                candidate_internal =  internal_cost + dist_to_now
+                if candidate_route_cost >= max_duration:
+                    continue
                 if candidate_route_cost < max_duration:
-                    if candidate_route_cost < best_full:
-                        best_full = candidate_route_cost
+                    if candidate_route_cost < best_candidate_round_trip and candidate_internal < best_internal:
+                        best_candidate_round_trip = candidate_route_cost
                         best_candidate = candidate
                         best_internal = internal_cost
                         added_a_shipment = True
+
+            """
+            if best_candidate_round_trip != float("inf"):
+                assert best_candidate_round_trip < max_duration, f"toofar: {shipment}, {longest_route[shipment]}, {best_candidate_round_trip}"
+            """
             if best_candidate is not None:
-                longest_route_starting_at_fullcost[shipment] = candidate_route_cost
-                longest_route_starting_at[shipment].append(best_candidate)
-                longest_route_starting_at_cost[shipment] += best_internal
+                longest_route_round_trip[shipment] = best_candidate_round_trip
+                longest_route[shipment].append(best_candidate)
+                longest_route_all_but_return[shipment] = candidate_internal
                 longest_route_starting_at_contains[shipment].add(best_candidate)
-                length_at[shipment] += 1
+                shipments_per_route[shipment] += 1
     
     almost_final = []
     for shipment in allowed_shipments:
-        length = longest_route_starting_at_fullcost[shipment]
-        route = longest_route_starting_at[shipment]
-        almost_final.append((len(route), length, route))
+        round_trip_dist = longest_route_round_trip[shipment]
+        route = longest_route[shipment]
+        almost_final.append((len(route), round_trip_dist, route))
     almost_final.sort(reverse=True)
     shipments_consumed, total_driving, shipments = almost_final[0]
     return shipments, total_driving
